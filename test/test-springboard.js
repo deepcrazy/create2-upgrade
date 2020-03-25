@@ -23,15 +23,15 @@ contract("Springboard", accounts => {
    });
 
    it("Upgrade wallet v1 to v2 should work", async () => {
-      const runtimeCode = Wallet.deployedBytecode;
+      let runtimeCode = Wallet.deployedBytecode;
       let tx = await springboard.execute(runtimeCode);
       assert.equal(tx.logs.length, 1, "should have 1 event log");
       assert.equal(tx.logs[0].event, "ContractCreated", "different event");
 
       // the new wallet contract address is logged in the event log
       let walletAddress =  tx.logs[0].args[0];
-      const salt = utils.keccak256(accounts[0]);
-      const expectedAddress = calculateAddress(springboard.address, salt, initcode);
+      let salt = utils.keccak256(accounts[0]);
+      let expectedAddress = calculateAddress(springboard.address, salt, initcode);
       assert.equal(expectedAddress, walletAddress, "address mismatch");
 
       // check the contract version
@@ -44,6 +44,28 @@ contract("Springboard", accounts => {
       // Write you code here....
       // 1) Upgrade wallet to V2
       // 2) verify wallet version == 2.0 after upgrade
+
+      const killWalletV1Status = await walletV1.die();   // Sell destruct the Old Wallet (Wallet.sol) Contract
+      console.log(killWalletV1Status.receipt.status);
+      assert.equal(killWalletV1Status.receipt.status, true, "WalletV1 Contract not self destructed")  // Check the status of self destruct from the transaction happened
+      
+      runtimeCode = WalletV2.deployedBytecode;
+      tx = await springboard.execute(runtimeCode);
+      assert.equal(tx.logs.length, 1, "should have 1 event log");
+      assert.equal(tx.logs[0].event, "ContractCreated", "different event");
+
+      // the new wallet contract address is logged in the event log
+      walletAddress =  tx.logs[0].args[0];
+      salt = utils.keccak256(accounts[0]);
+      expectedAddress = calculateAddress(springboard.address, salt, initcode);
+      assert.equal(expectedAddress, walletAddress, "address mismatch");
+
+      // check the contract version
+      const walletV2 = await WalletV2.at(walletAddress);
+      let versionV2 = await walletV2.version();
+
+      console.log(walletAddress, versionV2);    // Logging the wallet address and version returned from WalletV2.sol contract
+      assert.equal(versionV2, "2.0", "version should be 2.0");    // Verifying the returned version from WalletV2.sol contract
       
    });
 });
